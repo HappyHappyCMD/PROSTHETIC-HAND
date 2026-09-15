@@ -1,0 +1,101 @@
+#include "gd32vf103.h"
+#include "drivers.h"
+#include "lcd.h"
+#include "delay.h"
+#include <stdio.h> //testa sen för att se utskrift i termninal
+
+void motorforward(int stages[4][4], int nbofstepsforward);
+
+void motorback(int stages[4][4], int nbofstepsforward);
+
+void calibrate(int stages[4][4], int nbofstesforward, int *progress);
+
+int main(void) {
+  int stages[4][4]={{1,0,1,0}, {0,1,1,0}, {0,1,0,1}, {1,0,0,1}};
+  int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
+  int lgthofmotorstep=100;
+  int print=1;
+  int progress=50;
+
+  t5omsi();
+  // colinit();
+  // l88init();
+  // keyinit();
+  Lcd_SetType(LCD_INVERTED);
+  Lcd_Init();
+  LCD_Clear(BLACK);
+  LCD_ShowStr(10, 10, "Progress = ", GREEN, TRANSPARENT);
+  LCD_ShowStr(10,60, "Motorstep = ", GREEN, TRANSPARENT);
+  LCD_ShowNum(120,60,lgthofmotorstep,4,GREEN);          // motorhastighet/upplösning 
+
+  rcu_periph_clock_enable(RCU_GPIOA); //OKLART OM JA SKA HA KVAR
+  // rcu_periph_clock_enable(RCU_GPIOB);
+  gpio_init(GPIOA, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
+  gpio_init(GPIOB, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_0);
+  calibrate(stages, lgthofmotorstep, &progress);
+
+  while (1) {
+    LCD_WR_Queue();
+
+    if (gpio_input_bit_get(GPIOB, GPIO_PIN_1) && progress<100) {
+      if (print == 1) {
+        for (int i=0; i<2; i++) LCD_ShowStr(10,30, "Going forward", GREEN, TRANSPARENT);
+      }
+      motorforward(stages, lgthofmotorstep);
+      print=0;
+      progress++;                                       // koppla till LCD variabel som laddar upp bild 
+
+    } else if (gpio_input_bit_get(GPIOB, GPIO_PIN_2) && progress>0) {
+      if (print == 1) {                                 // Känner av PIN inpu 
+        for (int i=0; i<2; i++) LCD_ShowStr(10,30, "Going back", GREEN, TRANSPARENT);
+      }
+      motorback(stages, lgthofmotorstep);
+      print=0;
+      progress--;
+
+    } else {
+      LCD_Fill(10,30,120,60, BLACK);
+      print=1;
+    }
+    LCD_ShowNum(90,10,progress,3,GREEN);
+
+  }
+}
+
+
+void calibrate(int stages[4][4], int nbofstesforward, int *progress){
+  while (!gpio_input_bit_get(GPIOB, GPIO_PIN_0)){
+    motorforward(stages, nbofstesforward);
+  }
+  *progress=100;
+}
+
+void motorforward(int stages[4][4], int nbofstepsforward){
+  int direction=0;
+
+  for (int i=0; i<nbofstepsforward; i++) {
+    delay_1ms(2);   
+    gpio_bit_write(GPIOA, GPIO_PIN_0, stages[direction][0]);
+    gpio_bit_write(GPIOA, GPIO_PIN_1, stages[direction][1]);
+    gpio_bit_write(GPIOA, GPIO_PIN_2, stages[direction][2]);
+    gpio_bit_write(GPIOA, GPIO_PIN_3, stages[direction++][3]);
+    if (direction == 4) 
+    direction = 0;
+  }
+}
+
+
+void motorback(int stages[4][4], int nbofstepsback){
+  int direction=3;
+  
+
+  for (int i=0; i<nbofstepsback; i++) {
+    delay_1ms(2);   
+    gpio_bit_write(GPIOA, GPIO_PIN_0, stages[direction][0]);
+    gpio_bit_write(GPIOA, GPIO_PIN_1, stages[direction][1]);
+    gpio_bit_write(GPIOA, GPIO_PIN_2, stages[direction][2]);
+    gpio_bit_write(GPIOA, GPIO_PIN_3, stages[direction--][3]);
+    if (direction == -1) 
+    direction = 3;
+  }
+}
