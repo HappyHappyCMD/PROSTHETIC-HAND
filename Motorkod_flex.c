@@ -10,18 +10,18 @@
 
 #define FLEX_PIN 27
 
-#define MOVE_STEPS 500
+#define MOVE_STEPS 4500
 
 #define BEND_THRESHOLD 40
 #define STRAIGHT_THRESHOLD 20
 
 // Speed limits
-#define MIN_DELAY_US 8000
-#define MAX_DELAY_US 1500
+#define MIN_DELAY_US 2000
+#define MAX_DELAY_US 400
 
 // Motor directions
-#define CLOSE_DIR 1
-#define OPEN_DIR 0
+#define CLOSE_DIR 0
+#define OPEN_DIR 1
 
 int read_flex()
 {
@@ -88,8 +88,6 @@ int main()
     sleep_ms(2000);
     int baseline = read_flex();
 
-    printf("Flex sensor motor control\n");
-    printf("Baseline: %d\n", baseline);
 
     bool hand_closed = false;
 
@@ -113,8 +111,6 @@ int main()
                 MIN_DELAY_US -
                 (distance * (MIN_DELAY_US - MAX_DELAY_US) / 200);
 
-            printf("Closing hand\n");
-
             // Close hand
             move_motor(CLOSE_DIR, MOVE_STEPS, delay_us);
 
@@ -124,7 +120,6 @@ int main()
         // SENSOR STRAIGHT
         else if (hand_closed && bend <= STRAIGHT_THRESHOLD)
         {
-            printf("Opening hand\n");
 
             // Open hand
             move_motor(OPEN_DIR, MOVE_STEPS, MIN_DELAY_US);
